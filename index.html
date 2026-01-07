@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gen 9 Pokemon</title>
-
+    <title>Gen 9 Pokémon Quiz</title>
     <style>
         :root {
             --bg-color: #121212;
@@ -40,6 +39,10 @@
             text-align: center; 
             border: 1px solid var(--border-color);
         }
+
+        /* Start Screen Styling */
+        #start-screen { padding: 40px 20px; }
+        .logo-placeholder { font-size: 3em; margin-bottom: 20px; display: block; }
         
         .stats-tracker { 
             display: flex; 
@@ -83,10 +86,10 @@
         button { padding: 12px 25px; cursor: pointer; border: none; border-radius: 8px; font-weight: 600; width: 100%; margin-top: 10px; }
         .submit-btn { background: #6200ee; color: white; }
         .next-btn { background: #333; color: white; display: none; border: 1px solid #444; }
+        .start-btn { background: var(--accent-green); color: #000; font-size: 1.2em; }
         
         #feedback { margin: 10px 0; font-weight: bold; min-height: 1.5em; }
         .correct { color: var(--accent-green); }
-        .typo-correct { color: #f1c40f; } /* Yellow for "Correct but typo" */
         .wrong { color: var(--accent-red); }
 
         .table-container { 
@@ -102,34 +105,41 @@
         .res-img { width: 40px; height: 40px; object-fit: contain; background: #333; border-radius: 4px; }
         .res-correct { color: var(--accent-green); }
         .res-wrong { color: var(--accent-red); }
-        .res-guess { font-size: 0.8em; color: var(--text-dim); font-style: italic; }
     </style>
 </head>
 <body>
 
 <div class="quiz-container">
-    <div class="stats-tracker">
-        <div class="stat-item"><span class="stat-label">Correct</span><span id="count-right" class="stat-count">0</span></div>
-        <div class="stat-item"><span class="stat-label">Wrong</span><span id="count-wrong" class="stat-count">0</span></div>
-        <div class="stat-item"><span class="stat-label">Left</span><span id="count-remaining" class="stat-count">0</span></div>
+    <div id="start-screen">
+        <h1 style="color: var(--accent-purple);">Pokémon Quiz</h1>
+        <p style="color: var(--text-dim);">Can you name all Gen 9 Pokémon?</p>
+        <button class="start-btn" onclick="startQuiz()">Start Quiz</button>
     </div>
 
-    <div id="quiz-content">
-        <div class="img-wrapper"><img id="display-image" src="" alt="Quiz Image"></div>
-        <input type="text" id="user-input" placeholder="Who's that Pokémon?" autocomplete="off">
-        <div id="feedback"></div>
-        <button id="btn-submit" class="submit-btn" onclick="checkAnswer()">Check Answer</button>
-        <button id="btn-next" class="next-btn" onclick="nextQuestion()">Next →</button>
+    <div id="quiz-main" style="display: none;">
+        <div class="stats-tracker">
+            <div class="stat-item"><span class="stat-label">Correct</span><span id="count-right" class="stat-count">0</span></div>
+            <div class="stat-item"><span class="stat-label">Wrong</span><span id="count-wrong" class="stat-count">0</span></div>
+            <div class="stat-item"><span class="stat-label">Left</span><span id="count-remaining" class="stat-count">0</span></div>
+        </div>
+
+        <div id="quiz-content">
+            <div class="img-wrapper"><img id="display-image" src="" alt="Quiz Image"></div>
+            <input type="text" id="user-input" placeholder="Who's that Pokémon?" autocomplete="off">
+            <div id="feedback"></div>
+            <button id="btn-submit" class="submit-btn" onclick="checkAnswer()">Check Answer</button>
+            <button id="btn-next" class="next-btn" onclick="nextQuestion()">Next →</button>
+        </div>
     </div>
 
     <div id="final-screen" style="display:none;">
-        <h2 style="color: var(--accent-purple);">Quiz Results</h2>
+        <h2 style="color: var(--accent-purple);">Quiz Results 🏆</h2>
         <p id="final-score"></p>
         <div class="table-container">
             <table>
                 <thead>
                     <tr>
-                        <th>Pokemon</th>
+                        <th>Sprite</th>
                         <th>Correct Answer</th>
                         <th>Your Guess</th>
                     </tr>
@@ -142,7 +152,6 @@
 </div>
 
 <script>
-    // Paste your full quizData array here
     const quizData = [
 { path:"images/906.png", answer: "Sprigatito"},
 { path:"images/907.png", answer: "Floragato"},
@@ -263,7 +272,7 @@
 { path:"images/1022.png", answer: "Iron Boulder"},
 { path:"images/1023.png", answer: "Iron Crown"},
 { path:"images/1024.png", answer: "Terapagos"},
-{ path:"images/1025.png", answer: "Pecharunt"}
+        { path: "images/1025.png", answer: "Pecharunt"}
     ];
 
     let currentIndex = 0;
@@ -271,40 +280,9 @@
     let wrongCount = 0;
     let userHistory = [];
 
-    // --- LEVENSHTEIN DISTANCE LOGIC ---
-    function getLevenshteinDistance(a, b) {
-        const matrix = [];
-        for (let i = 0; i <= b.length; i++) matrix[i] = [i];
-        for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
-        for (let i = 1; i <= b.length; i++) {
-            for (let j = 1; j <= a.length; j++) {
-                if (b.charAt(i - 1) === a.charAt(j - 1)) {
-                    matrix[i][j] = matrix[i - 1][j - 1];
-                } else {
-                    matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j] + 1);
-                }
-            }
-        }
-        return matrix[b.length][a.length];
-    }
-
-    function isCloseEnough(userVal, actualVal) {
-        userVal = userVal.toLowerCase().trim();
-        actualVal = actualVal.toLowerCase().trim();
-        
-        if (userVal === actualVal) return true;
-        
-        const distance = getLevenshteinDistance(userVal, actualVal);
-        
-        // Rules: If name is short (<=4), must be exact. 
-        // If name is medium, allow 1 error. 
-        // If name is long (>8), allow 2 errors.
-        if (actualVal.length <= 4) return distance === 0;
-        if (actualVal.length <= 8) return distance <= 1;
-        return distance <= 2;
-    }
-
-    // --- QUIZ LOGIC ---
+    // Elements
+    const startScreen = document.getElementById('start-screen');
+    const quizMain = document.getElementById('quiz-main');
     const imgElement = document.getElementById('display-image');
     const inputElement = document.getElementById('user-input');
     const feedbackElement = document.getElementById('feedback');
@@ -314,6 +292,39 @@
     const wrongDisplay = document.getElementById('count-wrong');
     const remainingDisplay = document.getElementById('count-remaining');
 
+    // 1. Initial State: Do not load anything yet.
+
+    function startQuiz() {
+        startScreen.style.display = 'none';
+        quizMain.style.display = 'block';
+        loadQuestion();
+    }
+
+    // --- LEVENSHTEIN LOGIC (Same as before) ---
+    function getLevenshteinDistance(a, b) {
+        const matrix = [];
+        for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+        for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+        for (let i = 1; i <= b.length; i++) {
+            for (let j = 1; j <= a.length; j++) {
+                if (b.charAt(i - 1) === a.charAt(j - 1)) matrix[i][j] = matrix[i - 1][j - 1];
+                else matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j] + 1);
+            }
+        }
+        return matrix[b.length][a.length];
+    }
+
+    function isCloseEnough(userVal, actualVal) {
+        userVal = userVal.toLowerCase().trim();
+        actualVal = actualVal.toLowerCase().trim();
+        if (userVal === actualVal) return true;
+        const distance = getLevenshteinDistance(userVal, actualVal);
+        if (actualVal.length <= 4) return distance === 0;
+        if (actualVal.length <= 8) return distance <= 1;
+        return distance <= 2;
+    }
+
+    // --- QUIZ FUNCTIONS ---
     function updateTracker() {
         rightDisplay.textContent = correctCount;
         wrongDisplay.textContent = wrongCount;
@@ -341,7 +352,6 @@
         const isCorrect = isCloseEnough(rawGuess, correctAnswer);
 
         inputElement.disabled = true;
-        
         if (isCorrect) {
             feedbackElement.textContent = (rawGuess.toLowerCase() === correctAnswer.toLowerCase()) ? "✓ Perfect!" : "✓ Close enough!";
             feedbackElement.className = "correct";
@@ -370,7 +380,7 @@
     }
 
     function showResults() {
-        document.getElementById('quiz-content').style.display = "none";
+        quizMain.style.display = "none";
         document.getElementById('final-screen').style.display = "block";
         document.getElementById('final-score').textContent = `Final Score: ${correctCount} / ${quizData.length}`;
         
@@ -395,7 +405,6 @@
         }
     });
 
-    loadQuestion();
 </script>
 
 </body>
