@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gen 9 Pokemon</title>
+
+    <style>
+        :root {
+            --bg-color: #121212;
+            --container-bg: #1e1e1e;
+            --text-main: #e0e0e0;
+            --text-dim: #b0b0b0;
+            --border-color: #333;
+            --input-bg: #2d2d2d;
+            --accent-purple: #bb86fc;
+            --accent-green: #03dac6;
+            --accent-red: #cf6679;
+        }
+
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+            margin: 0; 
+            background: var(--bg-color); 
+            color: var(--text-main);
+            padding: 20px;
+        }
+
+        .quiz-container { 
+            background: var(--container-bg); 
+            padding: 30px; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+            width: 100%;
+            max-width: 600px; 
+            text-align: center; 
+            border: 1px solid var(--border-color);
+        }
+        
+        .stats-tracker { 
+            display: flex; 
+            justify-content: space-around; 
+            margin-bottom: 20px; 
+            padding: 10px; 
+            background: #252525; 
+            border-radius: 8px; 
+            border: 1px solid var(--border-color); 
+        }
+        .stat-label { font-size: 0.75em; color: var(--text-dim); text-transform: uppercase; display: block; }
+        .stat-count { font-size: 1.2em; font-weight: bold; }
+        #count-right { color: var(--accent-green); }
+        #count-wrong { color: var(--accent-red); }
+
+        .img-wrapper { 
+            width: 100%; 
+            height: 250px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            border-radius: 10px; 
+            background: #2d2d2d; 
+            margin-bottom: 20px; 
+            border: 1px solid var(--border-color);
+        }
+        img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+        input { 
+            width: 90%; 
+            padding: 12px; 
+            margin-bottom: 15px; 
+            border: 2px solid var(--border-color); 
+            border-radius: 8px; 
+            background: var(--input-bg);
+            color: white;
+            font-size: 16px;
+        }
+        input:focus { border-color: var(--accent-purple); outline: none; }
+
+        button { padding: 12px 25px; cursor: pointer; border: none; border-radius: 8px; font-weight: 600; width: 100%; margin-top: 10px; }
+        .submit-btn { background: #6200ee; color: white; }
+        .next-btn { background: #333; color: white; display: none; border: 1px solid #444; }
+        
+        #feedback { margin: 10px 0; font-weight: bold; min-height: 1.5em; }
+        .correct { color: var(--accent-green); }
+        .typo-correct { color: #f1c40f; } /* Yellow for "Correct but typo" */
+        .wrong { color: var(--accent-red); }
+
+        .table-container { 
+            max-height: 400px; 
+            overflow-y: auto; 
+            margin-top: 20px; 
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+        table { width: 100%; border-collapse: collapse; background: #252525; font-size: 0.85em; text-align: left; }
+        th { background: #333; position: sticky; top: 0; padding: 12px; }
+        td { padding: 10px; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
+        .res-img { width: 40px; height: 40px; object-fit: contain; background: #333; border-radius: 4px; }
+        .res-correct { color: var(--accent-green); }
+        .res-wrong { color: var(--accent-red); }
+        .res-guess { font-size: 0.8em; color: var(--text-dim); font-style: italic; }
+    </style>
+</head>
+<body>
+
+<div class="quiz-container">
+    <div class="stats-tracker">
+        <div class="stat-item"><span class="stat-label">Correct</span><span id="count-right" class="stat-count">0</span></div>
+        <div class="stat-item"><span class="stat-label">Wrong</span><span id="count-wrong" class="stat-count">0</span></div>
+        <div class="stat-item"><span class="stat-label">Left</span><span id="count-remaining" class="stat-count">0</span></div>
+    </div>
+
+    <div id="quiz-content">
+        <div class="img-wrapper"><img id="display-image" src="" alt="Quiz Image"></div>
+        <input type="text" id="user-input" placeholder="Who's that Pokémon?" autocomplete="off">
+        <div id="feedback"></div>
+        <button id="btn-submit" class="submit-btn" onclick="checkAnswer()">Check Answer</button>
+        <button id="btn-next" class="next-btn" onclick="nextQuestion()">Next →</button>
+    </div>
+
+    <div id="final-screen" style="display:none;">
+        <h2 style="color: var(--accent-purple);">Quiz Results</h2>
+        <p id="final-score"></p>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Pokemon</th>
+                        <th>Correct Answer</th>
+                        <th>Your Guess</th>
+                    </tr>
+                </thead>
+                <tbody id="results-body"></tbody>
+            </table>
+        </div>
+        <button class="submit-btn" onclick="location.reload()">Try Again</button>
+    </div>
+</div>
+
+<script>
+    // Paste your full quizData array here
+    const quizData = [
+{ path:"images/906.png", answer: "Sprigatito"},
+{ path:"images/907.png", answer: "Floragato"},
+{ path:"images/908.png", answer: "Meowscarada"},
+{ path:"images/909.png", answer: "Fuecoco"},
+{ path:"images/910.png", answer: "Crocalor"},
+{ path:"images/911.png", answer: "Skeledirge"},
+{ path:"images/912.png", answer: "Quaxly"},
+{ path:"images/913.png", answer: "Quaxwell"},
+{ path:"images/914.png", answer: "Quaquaval"},
+{ path:"images/915.png", answer: "Lechonk"},
+{ path:"images/916.png", answer: "Oinkologne"},
+{ path:"images/917.png", answer: "Tarountula"},
+{ path:"images/918.png", answer: "Spidops"},
+{ path:"images/919.png", answer: "Nymble"},
+{ path:"images/920.png", answer: "Lokix"},
+{ path:"images/921.png", answer: "Pawmi"},
+{ path:"images/922.png", answer: "Pawmo"},
+{ path:"images/923.png", answer: "Pawmot"},
+{ path:"images/924.png", answer: "Tandemaus"},
+{ path:"images/925.png", answer: "Maushold"},
+{ path:"images/926.png", answer: "Fidough"},
+{ path:"images/927.png", answer: "Dachsbun"},
+{ path:"images/928.png", answer: "Smoliv"},
+{ path:"images/929.png", answer: "Dolliv"},
+{ path:"images/930.png", answer: "Arboliva"},
+{ path:"images/931.png", answer: "Squawkabilly"},
+{ path:"images/932.png", answer: "Nacli"},
+{ path:"images/933.png", answer: "Naclstack"},
+{ path:"images/934.png", answer: "Garganacl"},
+{ path:"images/935.png", answer: "Charcadet"},
+{ path:"images/936.png", answer: "Armarouge"},
+{ path:"images/937.png", answer: "Ceruledge"},
+{ path:"images/938.png", answer: "Tadbulb"},
+{ path:"images/939.png", answer: "Bellibolt"},
+{ path:"images/940.png", answer: "Wattrel"},
+{ path:"images/941.png", answer: "Kilowattrel"},
+{ path:"images/942.png", answer: "Maschiff"},
+{ path:"images/943.png", answer: "Mabosstiff"},
+{ path:"images/944.png", answer: "Shroodle"},
+{ path:"images/945.png", answer: "Grafaiai"},
+{ path:"images/946.png", answer: "Bramblin"},
+{ path:"images/947.png", answer: "Brambleghast"},
+{ path:"images/948.png", answer: "Toedscool"},
+{ path:"images/949.png", answer: "Toedscruel"},
+{ path:"images/950.png", answer: "Klawf"},
+{ path:"images/951.png", answer: "Capsakid"},
+{ path:"images/952.png", answer: "Scovillain"},
+{ path:"images/953.png", answer: "Rellor"},
+{ path:"images/954.png", answer: "Rabsca"},
+{ path:"images/955.png", answer: "Flittle"},
+{ path:"images/956.png", answer: "Espathra"},
+{ path:"images/957.png", answer: "Tinkatink"},
+{ path:"images/958.png", answer: "Tinkatuff"},
+{ path:"images/959.png", answer: "Tinkaton"},
+{ path:"images/960.png", answer: "Wiglett"},
+{ path:"images/961.png", answer: "Wugtrio"},
+{ path:"images/962.png", answer: "Bombirdier"},
+{ path:"images/963.png", answer: "Finizen"},
+{ path:"images/964.png", answer: "Palafin"},
+{ path:"images/965.png", answer: "Varoom"},
+{ path:"images/966.png", answer: "Revavroom"},
+{ path:"images/967.png", answer: "Cyclizar"},
+{ path:"images/968.png", answer: "Orthworm"},
+{ path:"images/969.png", answer: "Glimmet"},
+{ path:"images/970.png", answer: "Glimmora"},
+{ path:"images/971.png", answer: "Greavard"},
+{ path:"images/972.png", answer: "Houndstone"},
+{ path:"images/973.png", answer: "Flamigo"},
+{ path:"images/974.png", answer: "Cetoddle"},
+{ path:"images/975.png", answer: "Cetitan"},
+{ path:"images/976.png", answer: "Veluza"},
+{ path:"images/977.png", answer: "Dondozo"},
+{ path:"images/978.png", answer: "Tatsugiri"},
+{ path:"images/979.png", answer: "Annihilape"},
+{ path:"images/980.png", answer: "Clodsire"},
+{ path:"images/981.png", answer: "Farigiraf"},
+{ path:"images/982.png", answer: "Dudunsparce"},
+{ path:"images/983.png", answer: "Kingambit"},
+{ path:"images/984.png", answer: "Great Tusk"},
+{ path:"images/985.png", answer: "Scream Tail"},
+{ path:"images/986.png", answer: "Brute Bonnet"},
+{ path:"images/987.png", answer: "Flutter Mane"},
+{ path:"images/988.png", answer: "Slither Wing"},
+{ path:"images/989.png", answer: "Sandy Shocks"},
+{ path:"images/990.png", answer: "Iron Treads"},
+{ path:"images/991.png", answer: "Iron Bundle"},
+{ path:"images/992.png", answer: "Iron Hands"},
+{ path:"images/993.png", answer: "Iron Jugulis"},
+{ path:"images/994.png", answer: "Iron Moth"},
+{ path:"images/995.png", answer: "Iron Thorns"},
+{ path:"images/996.png", answer: "Frigibax"},
+{ path:"images/997.png", answer: "Arctibax"},
+{ path:"images/998.png", answer: "Baxcalibur"},
+{ path:"images/999.png", answer: "Gimmighoul"},
+{ path:"images/1000.png", answer: "Gholdengo"},
+{ path:"images/1001.png", answer: "Wo-Chien"},
+{ path:"images/1002.png", answer: "Chien-Pao"},
+{ path:"images/1003.png", answer: "Ting-Lu"},
+{ path:"images/1004.png", answer: "Chi-Yu"},
+{ path:"images/1005.png", answer: "Roaring Moon"},
+{ path:"images/1006.png", answer: "Iron Valiant"},
+{ path:"images/1007.png", answer: "Koraidon"},
+{ path:"images/1008.png", answer: "Miraidon"},
+{ path:"images/1009.png", answer: "Walking Wake"},
+{ path:"images/1010.png", answer: "Iron Leaves"},
+{ path:"images/1011.png", answer: "Dipplin"},
+{ path:"images/1012.png", answer: "Poltchageist"},
+{ path:"images/1013.png", answer: "Sinistcha"},
+{ path:"images/1014.png", answer: "Okidogi"},
+{ path:"images/1015.png", answer: "Munkidori"},
+{ path:"images/1016.png", answer: "Fezandipiti"},
+{ path:"images/1017.png", answer: "Ogerpon"},
+{ path:"images/1018.png", answer: "Archaludon"},
+{ path:"images/1019.png", answer: "Hydrapple"},
+{ path:"images/1020.png", answer: "Gouging Fire"},
+{ path:"images/1021.png", answer: "Raging Bolt"},
+{ path:"images/1022.png", answer: "Iron Boulder"},
+{ path:"images/1023.png", answer: "Iron Crown"},
+{ path:"images/1024.png", answer: "Terapagos"},
+{ path:"images/1025.png", answer: "Pecharunt"}
+    ];
+
+    let currentIndex = 0;
+    let correctCount = 0;
+    let wrongCount = 0;
+    let userHistory = [];
+
+    // --- LEVENSHTEIN DISTANCE LOGIC ---
+    function getLevenshteinDistance(a, b) {
+        const matrix = [];
+        for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+        for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+        for (let i = 1; i <= b.length; i++) {
+            for (let j = 1; j <= a.length; j++) {
+                if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                    matrix[i][j] = matrix[i - 1][j - 1];
+                } else {
+                    matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j] + 1);
+                }
+            }
+        }
+        return matrix[b.length][a.length];
+    }
+
+    function isCloseEnough(userVal, actualVal) {
+        userVal = userVal.toLowerCase().trim();
+        actualVal = actualVal.toLowerCase().trim();
+        
+        if (userVal === actualVal) return true;
+        
+        const distance = getLevenshteinDistance(userVal, actualVal);
+        
+        // Rules: If name is short (<=4), must be exact. 
+        // If name is medium, allow 1 error. 
+        // If name is long (>8), allow 2 errors.
+        if (actualVal.length <= 4) return distance === 0;
+        if (actualVal.length <= 8) return distance <= 1;
+        return distance <= 2;
+    }
+
+    // --- QUIZ LOGIC ---
+    const imgElement = document.getElementById('display-image');
+    const inputElement = document.getElementById('user-input');
+    const feedbackElement = document.getElementById('feedback');
+    const submitBtn = document.getElementById('btn-submit');
+    const nextBtn = document.getElementById('btn-next');
+    const rightDisplay = document.getElementById('count-right');
+    const wrongDisplay = document.getElementById('count-wrong');
+    const remainingDisplay = document.getElementById('count-remaining');
+
+    function updateTracker() {
+        rightDisplay.textContent = correctCount;
+        wrongDisplay.textContent = wrongCount;
+        remainingDisplay.textContent = quizData.length - currentIndex;
+    }
+
+    function loadQuestion() {
+        updateTracker();
+        if (currentIndex < quizData.length) {
+            imgElement.src = quizData[currentIndex].path;
+            inputElement.value = "";
+            inputElement.disabled = false;
+            feedbackElement.textContent = "";
+            submitBtn.style.display = "block";
+            nextBtn.style.display = "none";
+            inputElement.focus();
+        } else {
+            showResults();
+        }
+    }
+
+    function checkAnswer() {
+        const rawGuess = inputElement.value.trim();
+        const correctAnswer = quizData[currentIndex].answer;
+        const isCorrect = isCloseEnough(rawGuess, correctAnswer);
+
+        inputElement.disabled = true;
+        
+        if (isCorrect) {
+            feedbackElement.textContent = (rawGuess.toLowerCase() === correctAnswer.toLowerCase()) ? "✓ Perfect!" : "✓ Close enough!";
+            feedbackElement.className = "correct";
+            correctCount++;
+        } else {
+            feedbackElement.textContent = `✗ Answer: ${correctAnswer}`;
+            feedbackElement.className = "wrong";
+            wrongCount++;
+        }
+
+        userHistory.push({
+            path: quizData[currentIndex].path,
+            name: correctAnswer,
+            guess: rawGuess || "(No Answer)",
+            wasCorrect: isCorrect
+        });
+
+        updateTracker();
+        submitBtn.style.display = "none";
+        nextBtn.style.display = "block";
+    }
+
+    function nextQuestion() {
+        currentIndex++;
+        loadQuestion();
+    }
+
+    function showResults() {
+        document.getElementById('quiz-content').style.display = "none";
+        document.getElementById('final-screen').style.display = "block";
+        document.getElementById('final-score').textContent = `Final Score: ${correctCount} / ${quizData.length}`;
+        
+        const tableBody = document.getElementById('results-body');
+        tableBody.innerHTML = "";
+
+        userHistory.forEach(item => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><img src="${item.path}" class="res-img"></td>
+                <td class="${item.wasCorrect ? 'res-correct' : ''}">${item.name}</td>
+                <td class="${item.wasCorrect ? 'res-correct' : 'res-wrong'}">${item.guess}</td>
+            `;
+            tableBody.appendChild(row);
+        });
+    }
+
+    inputElement.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+            if (submitBtn.style.display !== "none") checkAnswer();
+            else if (nextBtn.style.display !== "none") nextQuestion();
+        }
+    });
+
+    loadQuestion();
+</script>
+
+</body>
+</html>
